@@ -43,13 +43,15 @@ async def request_detail_by_url(url: str, cookie: str) -> tuple[dict, bool]:
         logger.error(f"failed to fetch url detail, code: {resp.status_code}, url: {url}")
         return {}, False
     try:
-        soup = BeautifulSoup(resp.text, 'html.parser')
-        pattern = re.compile('window\\.__INITIAL_STATE__=')
-        script = soup.find('script', text=pattern)
-        if not script:
+        # 直接用正则从原始 HTML 中提取 JSON，避免 BeautifulSoup 对脚本内容的意外处理
+        m = re.search(r'window\.__INITIAL_STATE__\s*=\s*(\{.*?\})', resp.text, re.S)
+        if not m:
             logger.error(f"initial state script not found for url: {url}")
             return {}, False
-        text = script.text.replace('window.__INITIAL_STATE__=', '').replace('undefined', '""').replace('null', 'null')
+        text = m.group(1)
+        # 将非 JSON 的占位符替换为可解析的值
+        # 小红书页面常出现 undefined 标记，替换为 null
+        text = re.sub(r'(?<!["'])\bundefined\b', 'null', text)
         target = json.loads(text)
         detail_map = target.get('note', {}).get('noteDetailMap', {})
         # 优先使用 URL 中的 id，否则取 map 中的首个值
