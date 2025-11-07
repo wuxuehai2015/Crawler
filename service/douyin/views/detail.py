@@ -15,12 +15,11 @@ async def detail(id: str):
     for account in _accounts:
         if account.get('expired', 0) == 1:
             continue
-        account_id = account.get('id', '')
         res, succ = await request_detail(id, account.get('cookie', ''))
         if res == {} or not succ:
-            logger.error(f'get video detail failed. account: {account_id}, id: {id}')
+            logger.error(f'get video detail failed. id: {id}')
             continue
-        logger.info(f'get video detail success, account: {account_id}, id: {id}, res: {res}')
+        logger.info(f'get video detail success, id: {id}')
         return reply(ErrorCode.OK, '成功' , res)
     logger.warning(f'get video detail failed. id: {id}')
     return reply(ErrorCode.NO_ACCOUNT, '请先添加账号')

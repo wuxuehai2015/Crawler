@@ -14,12 +14,11 @@ async def comments(id: str, offset: int = 0, limit: int = 20):
     for account in _accounts:
         if account.get('expired', 0) == 1:
             continue
-        account_id = account.get('id', '')
         res, succ = await request_comments(id, account.get('cookie', ''), offset, limit)
         if res == {} or not succ:
-            logger.error(f'get comments failed. account: {account_id}, id: {id}, offset: {offset}, limit: {limit}, res: {res}')
+            logger.error(f'get comments failed. id: {id}, offset: {offset}, limit: {limit}')
             continue
-        logger.info(f'get comments success, account: {account_id}, id: {id}, offset: {offset}, limit: {limit}, res: {res}')
+        logger.info(f'get comments success, id: {id}, offset: {offset}, limit: {limit}')
         return reply(ErrorCode.OK, '成功' , res)
     logger.warning(f'get comments failed. id: {id}, offset: {offset}, limit: {limit}')
     return reply(ErrorCode.NO_ACCOUNT, '请先添加账号')

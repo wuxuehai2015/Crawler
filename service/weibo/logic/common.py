@@ -52,11 +52,13 @@ async def mobile_common_request(uri: str, params: dict, headers: dict, doc: bool
     """
     url = f'{MOBILE_HOST}{uri}'
     params.update(MOBILE_COMMON_PARAMS)
-    headers.update(MOBILE_COMMON_HEADERS)
+    # 默认移动端头，允许调用方覆盖（例如自定义 Referer）
+    _headers = dict(MOBILE_COMMON_HEADERS)
+    _headers.update(headers)
     
     logger.info(
         f'url: {url}, request {url}, params={params}, headers={headers}')
-    response = await requests.get(url, params=params, headers=headers)
+    response = await requests.get(url, params=params, headers=_headers, follow_redirects=True)
     logger.info(
         f'url: {url}, params: {params}, response, code: {response.status_code}, body: {response.text}')
 

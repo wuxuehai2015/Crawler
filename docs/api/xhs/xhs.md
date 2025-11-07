@@ -226,3 +226,50 @@
 | code | true | int | 0: 成功 1: 参数错误 2: 服务器错误 |
 | data | true | struct | 数据 |
 | msg | true | string | 请求说明(成功、参数错误、服务器错误) |
+
+### 根据URL获取笔记详情
+
+- **功能说明**
+
+通过分享链接直接获取笔记详情，自动跟随 302 跳转并解析页面 HTML 中的 `window.__INITIAL_STATE__` 大 JSON。兼容 PC 网页链接与移动端短链分享。
+
+- **URL**
+
+  `/xhs/detail_by_url`
+
+- **Method**
+
+  `GET`
+
+- **URL Params**
+
+| 参数 | 必选 | 类型 | 说明 |
+|:---:|:---:|:---:|:---:|
+| url | true | string | 小红书分享链接，支持 PC 与移动短链 |
+
+- **Success Response**
+
+| 参数 | 必选 | 类型 | 说明 |
+|:---:|:---:|:---:|:---:|
+| code | true | int | 0: 成功 1: 参数错误 2: 服务器错误 3: 无账号 |
+| data | true | struct | 笔记详情数据（与`/xhs/detail`返回结构一致） |
+| msg | true | string | 请求说明(成功、参数错误、服务器错误、无账号) |
+
+- **示例**
+
+PC 网页链接：
+
+```
+GET /xhs/detail_by_url?url=https://www.xiaohongshu.com/discovery/item/6904251c000000000301d282?source=webshare&xhsshare=pc_web&xsec_token=ABq4ote6xJo78nPenGR8Sq4qMIlHsmbsjE3yydH8-suZk=&xsec_source=pc_share
+```
+
+移动短链：
+
+```
+GET /xhs/detail_by_url?url=http://xhslink.com/o/8Z1W6jzqFj5
+```
+
+- **说明**
+
+- 接口内部会跟随 302 跳转并获取最终 HTML，再从中提取 `window.__INITIAL_STATE__` 的大 JSON。
+- 若某账号请求失败会自动尝试下一个有效账号；所有账号均失败时返回 `code=3`，提示先添加账号。

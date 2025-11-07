@@ -14,12 +14,11 @@ async def search(keyword: str, offset: int = 0, limit: int = 10):
     for account in _accounts:
         if account.get('expired', 0) == 1:
             continue
-        account_id = account.get('id', '')
         res, succ = await request_search(keyword, account.get('cookie', ''), offset, limit)
         if res == {} or not succ:
-            logger.error(f'search failed, account: {account_id}, keyword: {keyword}, offset: {offset}, limit: {limit}, res: {res}')
+            logger.error(f'search failed, keyword: {keyword}, offset: {offset}, limit: {limit}')
             continue
-        logger.info(f'search success, account: {account_id}, keyword: {keyword}, offset: {offset}, limit: {limit}, res: {res}')
+        logger.info(f'search success, keyword: {keyword}, offset: {offset}, limit: {limit}')
         return reply(ErrorCode.OK, '成功' , res)
     logger.warning(f'search failed, keyword: {keyword}, offset: {offset}, limit: {limit}')
     return reply(ErrorCode.NO_ACCOUNT, '请先添加账号')

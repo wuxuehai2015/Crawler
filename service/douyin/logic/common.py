@@ -4,6 +4,7 @@ from lib import requests
 import urllib.parse
 import re
 import random
+import time
 
 HOST = 'https://www.douyin.com'
 
@@ -59,21 +60,37 @@ COMMON_HEADERS ={
 
 DOUYIN_SIGN = execjs.compile(open('lib/js/douyin.js', encoding='utf-8').read())
 
+# webid 内存缓存（按 cookie 的 s_v_web_id 进行区分），避免每次都预请求
+# 结构： { cache_key: {"value": webid, "ts": unix_ts} }
+WEBID_CACHE: dict[str, dict] = {}
+WEBID_CACHE_TTL_SECONDS = 1800  # 30 分钟
+
+def _get_cache_key(headers: dict) -> str:
+    cookie = headers.get('cookie') or headers.get('Cookie') or ''
+    cookie_dict = cookies_to_dict(cookie) if cookie else {}
+    # 以 s_v_web_id 作为区分，不存在则退化为 UA
+    return cookie_dict.get('s_v_web_id') or headers.get('User-Agent') or 'default'
+
 async def get_webid(headers: dict):
+    # 命中缓存直接返回
+    cache_key = _get_cache_key(headers)
+    now = int(time.time())
+    cached = WEBID_CACHE.get(cache_key)
+    if cached and (now - cached.get('ts', 0) < WEBID_CACHE_TTL_SECONDS):
+        return cached.get('value')
+
     url = 'https://www.douyin.com/?recommend=1'
-    logger.info(
-        f'url: {url}, request {url}, headers={headers}')
     headers['sec-fetch-dest'] = 'document'
     response = await requests.get(url, headers=headers)
-    logger.info(
-        f'url: {url}, response, code: {response.status_code}')
     if response.status_code != 200 or response.text == '':
-        logger.error(f'failed get webid, url: {url}, header: {headers}')
+        logger.error(f'failed get webid, url: {url}, code: {response.status_code}')
         return None
     pattern = r'\\"user_unique_id\\":\\"(\d+)\\"'
     match = re.search(pattern, response.text)
     if match:
-        return match.group(1)
+        webid = match.group(1)
+        WEBID_CACHE[cache_key] = {"value": webid, "ts": now}
+        return webid
     return None
 
 def cookies_to_dict(cookie_string) -> dict:
@@ -98,6 +115,7 @@ async def deal_params(params: dict, headers: dict) -> dict:
     params['device_memory'] = cookie_dict.get('device_web_memory_size', 8)
     params['verifyFp'] = cookie_dict.get('s_v_web_id', None)
     params['fp'] = cookie_dict.get('s_v_web_id', None)
+    # 复用缓存的 webid（失败时依然尝试请求并设置缓存）
     params['webid'] = await get_webid(headers)
     return params
 
@@ -123,7 +141,6 @@ async def common_request(uri: str, params: dict, headers: dict) -> tuple[dict, b
     url = f'{HOST}{uri}'
     params.update(COMMON_PARAMS)
     headers.update(COMMON_HEADERS)
-
     params = await deal_params(params, headers)
     query = '&'.join([f'{k}={urllib.parse.quote(str(v))}' for k, v in params.items()])
     call_name = 'sign_datail'
@@ -131,20 +148,15 @@ async def common_request(uri: str, params: dict, headers: dict) -> tuple[dict, b
         call_name = 'sign_reply'
     a_bogus = DOUYIN_SIGN.call(call_name, query, headers["User-Agent"])
     params["a_bogus"] = a_bogus
-
-    logger.info(
-        f'url: {url}, request {url}, params={params}, headers={headers}')
     response = await requests.get(url, params=params, headers=headers)
-    logger.info(
-        f'url: {url}, params: {params}, response, code: {response.status_code}, body: {response.text}')
+    logger.info(f'url: {url}, response code: {response.status_code}')
 
     if response.status_code != 200 or response.text == '':
         logger.error(
-            f'url: {url}, params: {params}, request error, code: {response.status_code}, body: {response.text}')
+            f'url: {url}, request error, code: {response.status_code}')
         return {}, False
     if response.json().get('status_code', 0) != 0:
         logger.error(
-            f'url: {url}, params: {params}, request error, code: {response.status_code}, body: {response.text}')
+            f'url: {url}, request error, code: {response.status_code}')
         return response.json(), False
-
     return response.json(), True

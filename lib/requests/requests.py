@@ -35,15 +35,15 @@ async def get_proxy():
     return proxy['url']
 
 @retry_request
-async def get(url, headers=None, params=None) -> Response:
+async def get(url, headers=None, params=None, follow_redirects: bool = False) -> Response:
     proxy = await get_proxy()
     async with httpx.AsyncClient(proxy=proxy) as client:
-        response = await client.get(url, headers=headers, params=params)
+        response = await client.get(url, headers=headers, params=params, follow_redirects=follow_redirects)
         return Response(response.status_code, response.text)
 
 @retry_request
-async def post(url, headers=None, data=None, json=None) -> Response:
+async def post(url, headers=None, data=None, json=None, follow_redirects: bool = False) -> Response:
     proxy = await get_proxy()
     async with httpx.AsyncClient(proxy=proxy) as client:
-        response = await client.post(url, headers=headers, json=json, data=data)
+        response = await client.post(url, headers=headers, json=json, data=data, follow_redirects=follow_redirects)
         return Response(response.status_code, response.text)
