@@ -1,6 +1,6 @@
 from .common import common_request, COMMON_HEADERS
 from lib import requests
-from lib import logger
+from lib.logger import logger
 from bs4 import BeautifulSoup
 import re
 import json
